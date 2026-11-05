@@ -1,0 +1,51 @@
+
+name: 무한 벽돌깨기 APK 빌드
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '*.zip'
+      - '.github/workflows/build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 저장소 가져오기
+        uses: actions/checkout@v4
+
+      - name: ZIP 파일 압축 풀기
+        run: |
+          mkdir extracted
+          ZIP_FILE=$(find . -maxdepth 1 -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ZIP 파일을 찾을 수 없습니다."
+            exit 1
+          fi
+
+          unzip -q "$ZIP_FILE" -d extracted
+
+          PROJECT_FILE=$(find extracted -name settings.gradle.kts | head -n 1)
+
+          if [ -z "$PROJECT_FILE" ]; then
+            echo "안드로이드 프로젝트를 찾을 수 없습니다."
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$PROJECT_FILE")
+          cp -a "$PROJECT_DIR"/. .
+
+      - name: Gradle 설치 및 빌드
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: 8.9
+          arguments: assembleDebug
+
+      - name: APK 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: 무한벽돌깨기-APK
+          path: app/build/outputs/apk/debug/*.apk
